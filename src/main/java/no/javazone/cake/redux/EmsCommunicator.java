@@ -6,9 +6,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import net.hamnaberg.funclite.Optional;
+import net.hamnaberg.funclite.Predicate;
 import net.hamnaberg.json.*;
 import net.hamnaberg.json.data.JsonObjectFromData;
 import net.hamnaberg.json.parser.CollectionParser;
+import net.hamnaberg.json.util.PropertyFunctions;
 
 import java.io.*;
 import java.net.*;
@@ -20,7 +22,7 @@ public class EmsCommunicator {
     private CollectionParser collectionParser = new CollectionParser();
 
     public String updateTags(String encodedTalkUrl,List<String> tags,String givenLastModified) {
-        Property newVals = Property.arrayObject("tags", new ArrayList<>(tags));
+        Property newVals = Property.arrayObject("tags", new ArrayList<Object>(tags));
 
         return update(encodedTalkUrl, givenLastModified, Arrays.asList(newVals));
     }
@@ -108,9 +110,9 @@ public class EmsCommunicator {
             for (Item item : items) {
                 Data data = item.getData();
 
-                String eventname = data.propertyByName("name").flatMap(Property::getValue).get().asString();
+                String eventname = data.propertyByName("name").flatMap(PropertyFunctions.propertyToValueStringF).get();
 
-                String slug = data.propertyByName("slug").flatMap(Property::getValue).get().asString();
+                String slug = data.propertyByName("slug").flatMap(PropertyFunctions.propertyToValueStringF).get();
                 String href = item.getHref().get().toString();
 
                 href = Base64Util.encode(href);
@@ -226,7 +228,7 @@ public class EmsCommunicator {
 
     private String eventFromTalk(String url) {
         int pos = url.indexOf("/sessions");
-        String eventUrl = url.substring(0,pos);
+        String eventUrl = url.substring(0, pos);
         return Base64Util.encode(eventUrl);
     }
 
@@ -401,16 +403,19 @@ public class EmsCommunicator {
         return allTalk.toString();
     }
 
-    private void addSpeakersToTalkFromLink(ArrayNode allTalk, Item item, ObjectNode jsonTalk) {
-        List<Link> links = item.getLinks();
-        ArrayNode speakers = JsonNodeFactory.instance.arrayNode();
-        for (Link link : links) {
-            if (!"speaker item".equals(link.getRel())) {
-                continue;
-            }
-            jsonTalk.set("speakers", speakers);
-            allTalk.add(jsonTalk);
 
+    private void addSpeakersToTalkFromLink(ArrayNode allTalk, Item item, ObjectNode jsonTalk) {
+        ArrayNode speakers = JsonNodeFactory.instance.arrayNode();
+        List<Link> links = item.findLinks(new Predicate<Link>() {
+            @Override
+            public boolean apply(Link input) {
+                return "speaker item".equals(input.getRel());
+            }
+        });
+        for (Link link : links) {
+            ObjectNode speaker = JsonNodeFactory.instance.objectNode();
+            speaker.put("name", link.getPrompt().get());
+            speakers.add(speaker);
         }
 
         jsonTalk.set("speakers",speakers);
@@ -454,7 +459,7 @@ public class EmsCommunicator {
     }
 
     private ObjectNode readTalk(Item item, URLConnection connection) {
-        ObjectNode jsonTalk = readItemProperties(item,connection);
+        ObjectNode jsonTalk = readItemProperties(item, connection);
 
         readRoom(item, jsonTalk);
         readSlot(item, jsonTalk);
@@ -523,7 +528,7 @@ public class EmsCommunicator {
 
     private static URLConnection openConnection(String questionUrl, boolean useAuthorization)  {
         try {
-            URL url = new URL(questionUrl);
+            final URL url = new URL(questionUrl);
             URLConnection urlConnection = url.openConnection();
 
             if (useAuthorization) {
@@ -573,7 +578,7 @@ public class EmsCommunicator {
     }
 
     public String update(String ref, List<String> taglist, String state, String lastModified) {
-        Property newTag = Property.arrayObject("tags", new ArrayList<>(taglist));
+        Property newTag = Property.arrayObject("tags", new ArrayList<Object>(taglist));
         Property newState = Property.value("state",state);
         return update(ref, lastModified, Arrays.asList(newTag,newState));
     }
