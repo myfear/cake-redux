@@ -118,7 +118,7 @@ public class DataServlet extends HttpServlet {
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("text/json");
+        response.setContentType("application/json");
         PrintWriter writer = response.getWriter();
         String pathInfo = request.getPathInfo();
         if ("/talks".equals(pathInfo)) {
