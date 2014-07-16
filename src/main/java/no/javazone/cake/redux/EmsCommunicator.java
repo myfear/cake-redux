@@ -66,11 +66,6 @@ public class EmsCommunicator {
             throw new RuntimeException(e);
         }
 
-        try (InputStream is = putConnection.getInputStream()) {
-            toString(is);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
         return fetchOneTalk(encodedTalkUrl);
     }
 
