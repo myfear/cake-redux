@@ -527,9 +527,19 @@ public class EmsCommunicator {
             URLConnection urlConnection = url.openConnection();
 
             if (useAuthorization) {
-                String authString = Configuration.getEmsUser() + ":" + Configuration.getEmsPassword();
-                String authStringEnc = Base64Util.encode(authString);
-                urlConnection.setRequestProperty("Authorization", "Basic " + authStringEnc);
+                Authenticator.setDefault(new Authenticator() {
+
+                    @Override
+                    protected PasswordAuthentication getPasswordAuthentication() {
+                        String host = getRequestingHost();
+                        int port = url.getPort();
+                        int actualPort = port == -1 ? url.getDefaultPort() : port;
+                        if (url.getHost().equals(host) && actualPort == getRequestingPort()) {
+                            return new PasswordAuthentication(Configuration.getEmsUser(), Configuration.getEmsPassword().toCharArray());
+                        }
+                        return null;
+                    }
+                });
             }
 
             return urlConnection;
@@ -563,7 +573,7 @@ public class EmsCommunicator {
     }
 
     public String update(String ref, List<String> taglist, String state, String lastModified) {
-        Property newTag = Property.arrayObject("tags", new ArrayList<Object>(taglist));
+        Property newTag = Property.arrayObject("tags", new ArrayList<>(taglist));
         Property newState = Property.value("state",state);
         return update(ref, lastModified, Arrays.asList(newTag,newState));
     }
