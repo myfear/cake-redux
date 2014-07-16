@@ -20,7 +20,7 @@ public class EmsCommunicator {
     private CollectionParser collectionParser = new CollectionParser();
 
     public String updateTags(String encodedTalkUrl,List<String> tags,String givenLastModified) {
-        Property newVals = Property.arrayObject("tags", new ArrayList<Object>(tags));
+        Property newVals = Property.arrayObject("tags", new ArrayList<>(tags));
 
         return update(encodedTalkUrl, givenLastModified, Arrays.asList(newVals));
     }
