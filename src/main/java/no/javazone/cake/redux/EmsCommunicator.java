@@ -50,7 +50,7 @@ public class EmsCommunicator {
         }
         Template template = Template.create(data.getDataAsMap().values());
 
-        HttpURLConnection putConnection = (HttpURLConnection) openConnection(talkUrl, true);
+        HttpURLConnection putConnection = openConnection(talkUrl, true);
 
         putConnection.setDoOutput(true);
         try {
@@ -348,7 +348,7 @@ public class EmsCommunicator {
 
     public String publishTalk(String encodedTalkUrl,String givenLastModified) {
         String talkUrl = Base64Util.decode(encodedTalkUrl);
-        HttpURLConnection connection = (HttpURLConnection) openConnection(talkUrl, true);
+        HttpURLConnection connection = openConnection(talkUrl, true);
 
         String lastModified = connection.getHeaderField("last-modified");
         if (!lastModified.equals(givenLastModified)) {
@@ -367,7 +367,7 @@ public class EmsCommunicator {
             throw new RuntimeException(e);
         }
 
-        HttpURLConnection postConnection = (HttpURLConnection) openConnection(publishLink, true);
+        HttpURLConnection postConnection = openConnection(publishLink, true);
 
         postConnection.setDoOutput(true);
         try {
@@ -448,10 +448,10 @@ public class EmsCommunicator {
     private List<Item> getAllTalksSummary(String encodedEvent) {
         String url = Base64Util.decode(encodedEvent) + "/sessions";
 
-        URLConnection connection = openConnection(url, true);
+        HttpURLConnection connection = openConnection(url, true);
         Collection events;
-        try {
-            events = collectionParser.parse(openStream(connection));
+        try(InputStream is = openStream(connection)) {
+            events = collectionParser.parse(is);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -526,25 +526,14 @@ public class EmsCommunicator {
     }
 
 
-    private static URLConnection openConnection(String questionUrl, boolean useAuthorization)  {
+    private static HttpURLConnection openConnection(String questionUrl, boolean useAuthorization)  {
         try {
             final URL url = new URL(questionUrl);
-            URLConnection urlConnection = url.openConnection();
+            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
 
             if (useAuthorization) {
-                Authenticator.setDefault(new Authenticator() {
-
-                    @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        String host = getRequestingHost();
-                        int port = url.getPort();
-                        int actualPort = port == -1 ? url.getDefaultPort() : port;
-                        if (url.getHost().equals(host) && actualPort == getRequestingPort()) {
-                            return new PasswordAuthentication(Configuration.getEmsUser(), Configuration.getEmsPassword().toCharArray());
-                        }
-                        return null;
-                    }
-                });
+                String base64String = Base64Util.encode(String.format("%s:%s", Configuration.getEmsUser(), Configuration.getEmsPassword()));
+                urlConnection.setRequestProperty("Authorization", String.format("Basic %s", base64String) );
             }
 
             return urlConnection;
