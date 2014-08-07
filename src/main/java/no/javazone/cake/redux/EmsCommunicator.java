@@ -39,7 +39,7 @@ public class EmsCommunicator {
         }
 
         Data data;
-        try (InputStream inputStream = connection.getInputStream()) {
+        try (InputStream inputStream = openStream(connection)) {
             data = collectionParser.parse(inputStream).getFirstItem().get().getData();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -48,7 +48,7 @@ public class EmsCommunicator {
         for (Property prop : newVals) {
             data = data.replace(prop);
         }
-        Template template = Template.create(data.getDataAsMap().values());
+        Template template = Template.create(data);
 
         HttpURLConnection putConnection = openConnection(talkUrl, true);
 
@@ -147,7 +147,7 @@ public class EmsCommunicator {
         URLConnection connection = openConnection(loc, false);
         try {
             ArrayNode roomArray = JsonNodeFactory.instance.arrayNode();
-            Collection events = new CollectionParser().parse(connection.getInputStream());
+            Collection events = new CollectionParser().parse(openStream(connection));
             List<Item> items = events.getItems();
             for (Item item : items) {
                 Data data = item.getData();
@@ -178,8 +178,8 @@ public class EmsCommunicator {
             List<Item> items = events.getItems();
             for (Item item : items) {
                 Data data = item.getData();
-                String start = data.propertyByName("start").get().getValue().get().asString();
-                String end = data.propertyByName("end").get().getValue().get().asString();
+                String start = data.propertyByName("start").flatMap(PropertyFunctions.propertyToValueStringF).get();
+                String end = data.propertyByName("end").flatMap(PropertyFunctions.propertyToValueStringF).get();
                 String href = item.getHref().get().toString();
 
                 SlotTimeFormatter slotTimeFormatter = new SlotTimeFormatter(start + "+" + end);
@@ -254,7 +254,7 @@ public class EmsCommunicator {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
-        HttpURLConnection connection = (HttpURLConnection) openConnection(talkUrl, true);
+        HttpURLConnection connection = openConnection(talkUrl, true);
 
         String lastModified = connection.getHeaderField("last-modified");
 
@@ -265,7 +265,7 @@ public class EmsCommunicator {
             return errorJson.toString();
         }
 
-        HttpURLConnection postConnection = (HttpURLConnection) openConnection(talkUrl, true);
+        HttpURLConnection postConnection = openConnection(talkUrl, true);
 
         postConnection.setDoOutput(true);
         try {
@@ -287,11 +287,6 @@ public class EmsCommunicator {
             throw new RuntimeException(e);
         }
 
-        try (InputStream is = postConnection.getInputStream()) {
-            toString(is);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
         return fetchOneTalk(encodedTalk);
     }
 
@@ -306,7 +301,7 @@ public class EmsCommunicator {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
-        HttpURLConnection connection = (HttpURLConnection) openConnection(talkUrl, true);
+        HttpURLConnection connection = openConnection(talkUrl, true);
 
         String lastModified = connection.getHeaderField("last-modified");
 
@@ -316,7 +311,7 @@ public class EmsCommunicator {
             return errorJson.toString();
         }
 
-        HttpURLConnection postConnection = (HttpURLConnection) openConnection(talkUrl, true);
+        HttpURLConnection postConnection = openConnection(talkUrl, true);
 
         postConnection.setDoOutput(true);
         try {
@@ -327,8 +322,6 @@ public class EmsCommunicator {
             throw new RuntimeException(e);
         }
 
-
-
         try {
             DataOutputStream wr = new DataOutputStream(postConnection.getOutputStream());
             wr.writeBytes(formData.toString());
@@ -338,11 +331,6 @@ public class EmsCommunicator {
             throw new RuntimeException(e);
         }
 
-        try (InputStream is = postConnection.getInputStream()) {
-            toString(is);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
         return fetchOneTalk(encodedTalk);
     }
 
@@ -358,7 +346,7 @@ public class EmsCommunicator {
         }
 
         String publishLink;
-        try (InputStream inputStream = connection.getInputStream()) {
+        try (InputStream inputStream = openStream(connection)) {
             Collection parse = collectionParser.parse(inputStream);
             Item talkItem = parse.getFirstItem().get();
             Optional<Link> publish = talkItem.linkByRel("publish");
@@ -433,7 +421,7 @@ public class EmsCommunicator {
             URLConnection talkConn = openConnection(item.getHref().get().toString(), true);
             Item talkIktem;
 
-            try (InputStream talkInpStr = talkConn.getInputStream()) {
+            try (InputStream talkInpStr = openStream(talkConn)) {
                 talkIktem = collectionParser.parse(talkInpStr).getFirstItem().get();
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -469,8 +457,8 @@ public class EmsCommunicator {
         URLConnection speakerConnection = openConnection(speakerLink, true);
 
         Collection speakers;
-        try (InputStream speakInpStream = speakerConnection.getInputStream()) {
-            speakers = collectionParser.parse(speakInpStream);
+        try (InputStream is = openStream(speakerConnection)) {
+            speakers = collectionParser.parse(is);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
