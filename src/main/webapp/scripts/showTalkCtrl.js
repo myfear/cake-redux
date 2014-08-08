@@ -76,7 +76,7 @@ angular.module('cakeReduxModule')
 
             $scope.saveTalk = function() {
                 $scope.showError = false;
-                var savebtn = $("#saveButton");
+                var savebtn = $(document).find("#saveButton");
                 savebtn.button("loading");
                 var t = $scope.aTalk;
                 var postData = {
